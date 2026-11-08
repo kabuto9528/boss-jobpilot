@@ -145,11 +145,13 @@ def test_settings_allowlist_and_http_control_boundaries(management, monkeypatch)
     response = client.get("/api/settings")
     assert response.status_code == 200
     data = response.json()
-    assert set(data) == {"search", "review_limits", "poll_interval_ms", "browser_timeout_ms", "scoring", "capabilities", "guards", "task_busy"}
+    assert set(data) == {"search", "review_limits", "auto_limits", "poll_interval_ms", "browser_timeout_ms", "scoring", "capabilities", "guards", "task_busy"}
     assert data["scoring"]["version"] == rule.version
     assert data["scoring"]["recommendation_threshold"] == rule.document["scoring"]["recommendation_threshold"]
     assert not data["capabilities"]["boss"]["review_enabled"]
     assert all(not capability["auto_enabled"] for capability in data["capabilities"].values())
+    assert data["capabilities"]["fixture"]["auto_preview_enabled"]
+    assert not data["capabilities"]["boss"]["auto_preview_enabled"]
     assert all(word not in response.text.lower() for word in ("sentinel", "password", "profile", "cookie", "database", "patterns"))
     assert {row["provider"] for row in data["guards"]} == {"fixture", "boss"}
     job_id = job()
@@ -160,10 +162,11 @@ def test_settings_allowlist_and_http_control_boundaries(management, monkeypatch)
         before = session.scalar(select(func.count()).select_from(Task))
     for provider in ("fixture", "boss"):
         response = client.post("/api/tasks", json={
-            "mode": "auto", "provider": provider, "request_key": uuid4().hex, "params": {"keywords": ["样例"]},
+            "mode": "auto", "provider": provider, "request_key": uuid4().hex,
+            "params": {"job_ids": [job_id], "dry_run": False, "confirm_simulation": True},
         })
-        assert response.status_code == 409
-        assert response.json()["detail"]["code"] == "AUTO_NOT_AVAILABLE"
+        assert response.status_code == 403
+        assert response.json()["detail"]["code"] == "AUTO_DISABLED"
     with Session(engine) as session:
         assert session.scalar(select(func.count()).select_from(Task)) == before
 

@@ -173,9 +173,12 @@ def test_boss_review_and_auto_mode_remain_disabled(mysql_task_app):
     assert boss.status_code == 403
     assert boss.json()["detail"]["code"] == "PROVIDER_DISABLED"
 
-    auto = client.post("/api/tasks", json={**_body(keyword="运维实习生"), "mode": "auto"})
-    assert auto.status_code == 409
-    assert auto.json()["detail"]["code"] == "AUTO_NOT_AVAILABLE"
+    auto = client.post("/api/tasks", json={
+        "mode": "auto", "provider": "boss", "request_key": _key(),
+        "params": {"job_ids": [1], "dry_run": False, "confirm_live": True},
+    })
+    assert auto.status_code == 403
+    assert auto.json()["detail"]["code"] == "AUTO_DISABLED"
 
     with Session(engine) as session:
         tasks_after = session.scalar(select(func.count()).select_from(Task))

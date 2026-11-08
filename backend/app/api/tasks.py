@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from ..config import ScoringConfigError, load_scoring_settings
 from ..models.task import Task
 from ..runner.task_runner import TERMINAL
-from ..schemas.tasks import StopResult, TaskAccepted, TaskCreate, TaskList, TaskStatus
+from ..schemas.tasks import AutoTaskParams, StopResult, TaskAccepted, TaskCreate, TaskList, TaskStatus
 from ..services.management import active_task, database_timestamp, lock_control_guards, utc_timestamp
 from .management_access import require_local_control
 
@@ -23,6 +23,7 @@ def task_status(task: Task) -> TaskStatus:
         task_id=task.id,
         mode=task.mode,
         provider=task.provider,
+        dry_run=task.dry_run,
         status=task.status,
         phase=task.phase,
         progress=task.progress_json or {},
@@ -49,10 +50,18 @@ def create_task(payload: TaskCreate, request: Request, response: Response) -> Ta
     engine = request.app.state.database_engine
     if engine is None:
         raise HTTPException(status_code=503, detail={"code": "DATABASE_UNAVAILABLE", "message": "数据库不可用"})
-    if payload.mode != "review":
-        raise HTTPException(status_code=409, detail={"code": "AUTO_NOT_AVAILABLE", "message": "当前阶段只允许 Review 任务"})
+    if request.app.state.task_runner.recovery_pending:
+        raise HTTPException(503, detail={"code": "TASK_RECOVERY_PENDING", "message": "后台正在核对遗留任务和投递状态"})
+    auto = isinstance(payload.params, AutoTaskParams)
     if payload.provider != "fixture":
+        if auto:
+            raise HTTPException(403, detail={"code": "AUTO_DISABLED", "message": "真实 BOSS Auto 未启用"})
         raise HTTPException(status_code=403, detail={"code": "PROVIDER_DISABLED", "message": "真实 BOSS Review 尚未完成前置验收或许可核验"})
+    if auto and not payload.params.dry_run:
+        if not request.app.state.fixture_simulation_enabled:
+            raise HTTPException(403, detail={"code": "AUTO_DISABLED", "message": "当前只启用本地样例预演"})
+        if not payload.params.confirm_simulation or payload.params.confirm_live:
+            raise HTTPException(422, detail={"code": "SIMULATION_CONFIRMATION_REQUIRED", "message": "请明确确认本次隔离样例模拟"})
 
     params = payload.params.model_dump(mode="json")
     request_body = {"mode": payload.mode, "provider": payload.provider, "params": params}
@@ -90,12 +99,12 @@ def create_task(payload: TaskCreate, request: Request, response: Response) -> Ta
                     request_hash=request_hash,
                     mode=payload.mode,
                     provider=payload.provider,
-                    dry_run=True,
+                    dry_run=params.get("dry_run", True),
                     status="queued",
                     phase="queued",
                     params_json=params,
                     rule_snapshot=scoring.document,
-                    progress_json={
+                    progress_json={"browser_submit_calls": 0} if auto else {
                         "keyword_count": len(params["keywords"]),
                         "keyword_index": 0,
                         "pages_attempted": 0,

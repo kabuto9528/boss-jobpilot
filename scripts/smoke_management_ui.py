@@ -100,7 +100,7 @@ def run(page):
     print(f"Applications: all five fixture labels shown; manual record #{app_id} moved pending -> failed with evidence")
 
     page.get_by_role("menuitem", name="任务中心").click()
-    expect(page.get_by_test_id("auto-disabled")).to_have_text("Auto 已禁用")
+    expect(page.get_by_test_id("auto-disabled")).to_have_text("真实 Auto 未启用")
     expect(page.locator("option[value='boss']")).to_have_js_property("disabled", True)
     count_before_review = read(page, "applications?source=fixture")["total"]
     completed = review(page, "慢读取")

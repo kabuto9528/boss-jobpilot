@@ -239,7 +239,9 @@ def test_stable_order_and_pagination_have_no_gaps_or_duplicates(mysql_jobs_app):
     assert len(page_ids) == len(set(page_ids)) == total
     assert page_ids == ordered_ids
     assert seed_keys <= {item["identity_key"] for page in all_pages for item in page["items"]}
-    assert page_ids == [item["id"] for item in client.get("/api/jobs", params={"source": "fixture"}).json()["items"]]
+    default_page = client.get("/api/jobs", params={"source": "fixture"}).json()
+    assert (default_page["page"], default_page["page_size"], default_page["total"]) == (1, 20, total)
+    assert [item["id"] for item in default_page["items"]] == page_ids[:20]
 
     records = [item for page in all_pages for item in page["items"]]
     sort_keys = [

@@ -6,7 +6,7 @@ from sqlalchemy.dialects.mysql import insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
-from backend.app.config import load_database_settings
+from backend.app.config import load_database_settings, load_scoring_settings
 from backend.app.db import create_database_engine
 from backend.app.models.application import Application
 from backend.app.models.job import Job
@@ -165,11 +165,20 @@ WORKFLOW_TITLES = ("运维支持", "数据维护", "云资源巡检", "平台保
 WORKFLOW_JOBS = tuple(
     {
         **job,
-        "source_job_id": f"fixture-workflow-{index}",
+        "source_job_id": f"workflow-{index}",
         "identity_key": f"fixture:workflow-{index}",
         "title": f"流程样例 · {title}",
     }
     for index, (job, title) in enumerate(zip(JOBS, WORKFLOW_TITLES, strict=True), 1)
+)
+WORKFLOW_PREVIEW_JOBS = (
+    ("eligible-a", "预演候选 A", {}),
+    ("eligible-b", "预演候选 B", {}),
+    ("eligible-c", "预演候选 C", {"priority": 2}),
+    ("low-score", "预演低分对照", {"score": 30, "recommended": False}),
+    ("stale", "预演旧规则对照", {"scoring_version": "fixture-v1"}),
+    ("inactive", "预演已下线对照", {"availability": "inactive"}),
+    ("identity", "预演身份待核实对照", {"source_job_id": None}),
 )
 WORKFLOW_STATES = (
     ("pending", None),
@@ -181,11 +190,26 @@ WORKFLOW_STATES = (
 
 
 def seed_workflow(engine: Engine) -> tuple[int, int]:
-    job_count = seed_jobs(engine, WORKFLOW_JOBS)
+    version = load_scoring_settings().version
+    controls = tuple(
+        {
+            **JOBS[0], "source_job_id": f"workflow-{key}", "identity_key": f"fixture:workflow-{key}",
+            "title": f"流程样例 · {title}", "scoring_version": version, **overrides,
+        }
+        for key, title, overrides in WORKFLOW_PREVIEW_JOBS
+    )
+    jobs = tuple(
+        {
+            **job, "scoring_version": version,
+            **({"recommended": True, "score": 78} if index == 3 else {}),
+        }
+        for index, job in enumerate(WORKFLOW_JOBS)
+    )
+    job_count = seed_jobs(engine, (*jobs, *controls))
     now = datetime.now(UTC).replace(tzinfo=None)
     application_count = 0
     with Session(engine) as session, session.begin():
-        for job, (status, evidence) in zip(WORKFLOW_JOBS, WORKFLOW_STATES):
+        for job, (status, evidence) in zip(jobs, WORKFLOW_STATES):
             job_id = session.scalar(select(Job.id).where(
                 Job.source == "fixture", Job.identity_key == job["identity_key"],
             ).with_for_update())

@@ -19,6 +19,17 @@ def lock_control_guards(session: Session) -> dict[str, AutomationGuard]:
     return {row.scope: row for row in rows}
 
 
+def latch_guard(guard: AutomationGuard | None, reason: str, task_id: int | None, now: datetime) -> None:
+    if guard is None:
+        return
+    if guard.blocked_at is not None and guard.acknowledged_at is None and guard.task_id == task_id and guard.reason_code == reason:
+        return
+    guard.blocked_at = now
+    guard.reason_code = reason
+    guard.task_id = task_id
+    guard.acknowledged_at = None
+
+
 def active_task(session: Session) -> Task | None:
     return session.scalar(select(Task).where(Task.active_slot == 1))
 

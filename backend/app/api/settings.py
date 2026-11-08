@@ -1,13 +1,13 @@
 from datetime import UTC, datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, StrictBool
 from sqlalchemy.orm import Session
 
 from ..config import load_app_document, load_browser_settings, load_scoring_settings
 from ..models.automation_guard import AutomationGuard
-from ..schemas.tasks import MAX_JOBS, MAX_KEYWORDS, MAX_PAGES, ReviewTaskParams
+from ..schemas.tasks import MAX_AUTO_SELECTION, MAX_JOBS, MAX_KEYWORDS, MAX_PAGES, ReviewTaskParams
 from ..services.management import SOURCES, Source, active_task, lock_control_guards, utc_timestamp
 from .applications import Database
 from .management_access import require_local_control
@@ -43,7 +43,7 @@ def guard_status(provider: Source, row: AutomationGuard | None) -> GuardStatus:
 
 
 @router.get("/api/settings")
-def read_settings(engine: Database) -> dict:
+def read_settings(engine: Database, request: Request) -> dict:
     try:
         document = load_app_document()
         search = document["search"]
@@ -83,12 +83,20 @@ def read_settings(engine: Database) -> dict:
     return {
         "search": {"provider": "fixture", **defaults.model_dump()},
         "review_limits": {"max_keywords": MAX_KEYWORDS, "max_pages": MAX_PAGES, "max_jobs": MAX_JOBS},
+        "auto_limits": {"max_selection": MAX_AUTO_SELECTION, "max_jobs": MAX_JOBS},
         "poll_interval_ms": poll_interval,
         "browser_timeout_ms": browser.timeout_ms,
         "scoring": scoring_view,
         "capabilities": {
-            "fixture": {"review_enabled": True, "auto_enabled": False, "login": {"status": "not_required", "checked_at": None}},
-            "boss": {"review_enabled": False, "auto_enabled": False, "login": {"status": "not_checked", "checked_at": None}},
+            "fixture": {
+                "review_enabled": True, "auto_preview_enabled": True,
+                "auto_enabled": request.app.state.fixture_simulation_enabled,
+                "login": {"status": "not_required", "checked_at": None},
+            },
+            "boss": {
+                "review_enabled": False, "auto_preview_enabled": False, "auto_enabled": False,
+                "login": {"status": "not_checked", "checked_at": None},
+            },
         },
         "guards": guards,
         "task_busy": is_busy,

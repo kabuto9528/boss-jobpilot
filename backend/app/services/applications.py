@@ -1,10 +1,11 @@
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from ..browser.fixture_submit import SubmitResult
 from ..models.application import Application
 from ..models.job import Job
 from ..schemas.applications import ApplicationItem, ApplicationJob, ApplicationList, ApplicationStatus, Resolution
@@ -77,3 +78,23 @@ def resolve_application(engine: Engine, application_id: int, status: Resolution,
         session.flush()
         session.refresh(row)
         return _item(row, job)
+
+
+def finish_auto_attempt(engine: Engine, application_id: int, task_id: int, result: SubmitResult) -> None:
+    with Session(engine) as session, session.begin():
+        changed = session.execute(
+            update(Application)
+            .where(Application.id == application_id, Application.task_id == task_id, Application.status == "sending")
+            .values(
+                status=result.status, result_code=result.code, evidence_summary=result.evidence,
+                resolved_at=datetime.now(UTC).replace(tzinfo=None) if result.status != "uncertain" else None,
+            )
+        )
+        if changed.rowcount != 1:
+            raise RuntimeError("The reserved Auto attempt is no longer sending.")
+
+
+def mark_auto_attempt_uncertain(row: Application, reason: str) -> None:
+    row.status = "uncertain"
+    row.result_code = reason
+    row.evidence_summary = "自动化中断，缺少持久化的提交结果，需人工核对"

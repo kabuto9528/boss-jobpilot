@@ -80,16 +80,17 @@ onUnmounted(() => {
   <p v-else-if="loading && !settings" class="workflow-panel workflow-empty" role="status">正在读取配置…</p>
   <template v-if="settings">
     <section class="workflow-panel">
-      <div class="workflow-title"><h2>来源能力与安全闸</h2><el-tag type="info" effect="plain">Auto 已禁用</el-tag></div>
+      <div class="workflow-title"><h2>来源能力与安全闸</h2><el-tag type="info" effect="plain">真实 Auto 未启用</el-tag></div>
       <p v-if="notice" class="workflow-success" role="status">{{ notice }}</p>
       <p v-if="settings.task_busy" class="workflow-note">有任务进行中，结束后可刷新并解除安全闸。</p>
       <div class="workflow-table-wrap">
         <table class="workflow-table">
-          <thead><tr><th scope="col">数据来源</th><th scope="col">Review</th><th scope="col">登录状态</th><th scope="col">安全闸</th><th scope="col">操作</th></tr></thead>
+          <thead><tr><th scope="col">数据来源</th><th scope="col">Review</th><th scope="col">Auto 预演</th><th scope="col">登录状态</th><th scope="col">安全闸</th><th scope="col">操作</th></tr></thead>
           <tbody>
             <tr v-for="guard in settings.guards" :key="guard.provider" :data-guard="guard.provider">
               <td><strong>{{ sources[guard.provider] }}</strong></td>
               <td>{{ settings.capabilities[guard.provider].review_enabled ? '已启用' : '未启用' }}</td>
+              <td>{{ settings.capabilities[guard.provider].auto_preview_enabled ? '已启用' : '未启用' }}</td>
               <td>{{ loginLabels[settings.capabilities[guard.provider].login.status] }}<small>检查时间：{{ dateLabel(settings.capabilities[guard.provider].login.checked_at) }}</small></td>
               <td>
                 <el-tag :type="guardLabels[guard.state][1]" :data-guard-state="guard.state" effect="plain">{{ guardLabels[guard.state][0] }}</el-tag>

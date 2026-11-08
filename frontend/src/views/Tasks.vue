@@ -7,6 +7,7 @@ import { dateLabel, errorMessage, isActive, sources, taskStates } from '../workf
 const route = useRoute()
 const router = useRouter()
 const form = reactive({ keywords: '', city: '', max_pages: 1, max_jobs: 1 })
+const autoForm = reactive({ jobIds: '', maxJobs: 3 })
 const settings = ref(null)
 const items = ref([])
 const total = ref(0)
@@ -27,11 +28,15 @@ let disposed = false
 
 const phases = {
   ...Object.fromEntries(Object.entries(taskStates).map(([key, [label]]) => [key, label])),
-  queued: '等待领取', starting: '启动浏览器', reading: '读取职位', writing: '保存职位',
+  queued: '等待领取', starting: '启动任务', reading: '读取职位', writing: '保存职位',
+  planning: '筛选候选', submitting: '模拟投递',
 }
 const counters = {
   keyword_index: '关键词进度', pages_attempted: '读取页数', details_attempted: '详情尝试',
   jobs_found: '发现职位', jobs_saved: '入库职位', duplicates: '重复职位',
+}
+const autoCounters = {
+  browser_submit_calls: '模拟提交动作', succeeded: '已确认成功', failed: '明确失败', uncertain: '待核对',
 }
 const taskId = computed(() => {
   const id = Number(route.query.task)
@@ -42,8 +47,9 @@ const selected = computed(() => {
   return [active.value, ...items.value, detail.value].find((task) => task?.task_id === taskId.value) || null
 })
 const guard = computed(() => settings.value?.guards.find((row) => row.provider === 'fixture'))
-const canCreate = computed(() => ready.value && settings.value?.capabilities.fixture.review_enabled &&
-  guard.value?.state === 'clear' && !active.value && !creating.value && !refreshing.value)
+const canCreate = computed(() => ready.value && guard.value?.state === 'clear' &&
+  !active.value && !creating.value && !refreshing.value)
+const fixture = computed(() => settings.value?.capabilities.fixture)
 
 function stopPolling() {
   clearTimeout(pollTimer)
@@ -150,7 +156,7 @@ function selectTask(id) {
 }
 
 async function submitReview() {
-  if (!canCreate.value) return
+  if (!canCreate.value || !fixture.value?.review_enabled) return
   actionError.value = ''
   const keywords = form.keywords.split(/[\n,，]+/).map((word) => word.trim()).filter(Boolean)
   if (!keywords.length || keywords.length > settings.value.review_limits.max_keywords ||
@@ -158,12 +164,28 @@ async function submitReview() {
     actionError.value = `请填写 1–${settings.value.review_limits.max_keywords} 个不重复的关键词。`
     return
   }
-  const params = { ...form, keywords, city: form.city.trim() }
-  const signature = JSON.stringify(params)
+  await submitTask('review', { ...form, keywords, city: form.city.trim() })
+}
+
+async function submitPreview() {
+  if (!canCreate.value || !fixture.value?.auto_preview_enabled) return
+  const entries = autoForm.jobIds.trim().split(/[\s,，]+/).filter(Boolean)
+  const ids = entries.map(Number)
+  const limit = settings.value.auto_limits.max_selection
+  if (!ids.length || ids.length > limit || entries.some((id, index) => !/^\d+$/.test(id) || !Number.isSafeInteger(ids[index]) || ids[index] < 1)) {
+    actionError.value = `请填写 1–${limit} 个有效的职位 ID。`
+    return
+  }
+  await submitTask('auto', { job_ids: [...new Set(ids)].sort((a, b) => a - b), max_jobs: autoForm.maxJobs, dry_run: true })
+}
+
+async function submitTask(mode, params) {
+  actionError.value = ''
+  const signature = JSON.stringify({ mode, params })
   if (retryBody?.signature !== signature) retryBody = { signature, key: crypto.randomUUID() }
   creating.value = true
   try {
-    const { data } = await createTask({ mode: 'review', provider: 'fixture', params, request_key: retryBody.key })
+    const { data } = await createTask({ mode, provider: 'fixture', params, request_key: retryBody.key })
     retryBody = null
     if (!disposed) await selectTask(data.task_id)
   } catch (err) {
@@ -211,13 +233,13 @@ onUnmounted(() => {
     <div>
       <div class="eyebrow">TASK CENTER</div>
       <h1>任务中心</h1>
-      <p>运行 Review 读取样例职位，并查看后台进度。</p>
+      <p>运行 Review 读取样例职位，或用 Auto 预演核对候选范围。</p>
     </div>
     <el-button :loading="refreshing" :disabled="creating || stopping" @click="refresh">刷新任务</el-button>
   </section>
 
   <section class="workflow-panel">
-    <div class="workflow-title"><h2>创建 Review</h2><el-tag type="info" effect="plain" data-testid="auto-disabled">Auto 已禁用</el-tag></div>
+    <div class="workflow-title"><h2>创建 Review</h2><el-tag type="info" effect="plain" data-testid="auto-disabled">真实 Auto 未启用</el-tag></div>
     <el-alert v-if="settingsError" :title="settingsError" type="error" :closable="false" show-icon />
     <template v-if="settings">
       <p v-if="active" class="workflow-note">当前执行槽由 <button type="button" class="workflow-link link-button" @click="selectTask(active.task_id)">任务 #{{ active.task_id }}</button> 占用。</p>
@@ -237,11 +259,25 @@ onUnmounted(() => {
         <label class="job-filter">关键词（换行或逗号分隔）
           <textarea v-model="form.keywords" rows="2" maxlength="650" :disabled="creating" required></textarea>
         </label>
-        <div><el-button native-type="submit" type="primary" :disabled="!canCreate" :loading="creating">创建 Review</el-button></div>
+        <div><el-button native-type="submit" type="primary" :disabled="!canCreate || !fixture?.review_enabled" :loading="creating">创建 Review</el-button></div>
       </form>
     </template>
-    <el-alert v-if="actionError" class="workflow-message" :title="actionError" type="error" :closable="false" show-icon />
   </section>
+
+  <section v-if="fixture?.auto_preview_enabled" class="workflow-panel">
+    <div class="workflow-title"><h2>Auto 预演</h2><el-tag effect="plain">本地样例</el-tag></div>
+    <p class="workflow-note">预演仅生成候选计划。可从 <RouterLink class="workflow-link" :to="{ name: 'jobs', query: { source: 'fixture' } }">职位详情</RouterLink> 查看职位 ID。</p>
+    <form class="workflow-fields" @submit.prevent="submitPreview">
+      <label class="job-filter">职位 ID（空格或逗号分隔）
+        <textarea v-model="autoForm.jobIds" rows="2" :disabled="creating" required></textarea>
+      </label>
+      <label class="job-filter">预演候选上限
+        <input v-model.number="autoForm.maxJobs" type="number" min="1" :max="settings.auto_limits.max_jobs" :disabled="creating" required>
+      </label>
+      <div><el-button native-type="submit" type="primary" :disabled="!canCreate" :loading="creating">创建 Auto 预演</el-button></div>
+    </form>
+  </section>
+  <el-alert v-if="actionError" class="workflow-message" :title="actionError" type="error" :closable="false" show-icon />
 
   <section class="workflow-panel" aria-label="任务详情">
     <div class="workflow-title">
@@ -253,13 +289,26 @@ onUnmounted(() => {
     <template v-if="selected">
       <div class="workflow-line" aria-live="polite">
         <el-tag :type="taskStates[selected.status]?.[1]" :data-task-status="selected.status">{{ taskStates[selected.status]?.[0] || selected.status }}</el-tag>
-        <span>{{ selected.mode === 'review' ? 'Review' : 'Auto' }} · {{ sources[selected.provider] }} · {{ phases[selected.phase] || selected.phase || '—' }}</span>
+        <span>{{ selected.mode === 'review' ? 'Review' : selected.dry_run ? 'Auto 预演' : 'Auto 模拟' }} · {{ sources[selected.provider] }} · {{ phases[selected.phase] || selected.phase || '—' }}</span>
         <span class="workflow-note">更新于 {{ dateLabel(selected.updated_at) }}</span>
       </div>
       <dl class="workflow-counters">
-        <div v-for="(label, key) in counters" :key="key"><dt>{{ label }}</dt><dd>{{ selected.progress[key] ?? 0 }}<template v-if="key === 'keyword_index'"> / {{ selected.progress.keyword_count ?? '—' }}</template></dd></div>
+        <div v-for="(label, key) in selected.mode === 'auto' ? autoCounters : counters" :key="key"><dt>{{ label }}</dt><dd>{{ selected.progress[key] ?? 0 }}<template v-if="key === 'keyword_index'"> / {{ selected.progress.keyword_count ?? '—' }}</template></dd></div>
       </dl>
-      <p v-if="Object.keys(selected.progress.skipped || {}).length" class="workflow-note">跳过：{{ Object.entries(selected.progress.skipped).map(([reason, count]) => `${reason} × ${count}`).join('、') }}</p>
+      <template v-if="selected.mode === 'auto' && selected.progress.plan">
+        <h3>候选计划（{{ selected.progress.plan.length }}）</h3>
+        <ol v-if="selected.progress.plan.length" data-testid="auto-plan">
+          <li v-for="job in selected.progress.plan" :key="job.job_id" :data-job-id="job.job_id">#{{ job.job_id }} {{ job.title }} · Priority {{ job.priority }} · Score {{ job.score }}</li>
+        </ol>
+        <p v-else class="workflow-note">本次没有符合条件的候选。</p>
+        <details v-if="selected.progress.skipped_jobs?.length" open>
+          <summary>跳过职位（{{ selected.progress.skipped_jobs.length }}）</summary>
+          <ul data-testid="auto-skips">
+            <li v-for="(job, index) in selected.progress.skipped_jobs" :key="index">#{{ job.job_id }} · {{ job.reason }}</li>
+          </ul>
+        </details>
+      </template>
+      <p v-else-if="Object.keys(selected.progress.skipped || {}).length" class="workflow-note">跳过：{{ Object.entries(selected.progress.skipped).map(([reason, count]) => `${reason} × ${count}`).join('、') }}</p>
       <p v-if="selected.stop_reason || selected.error_code" class="workflow-note">结束原因：{{ [...new Set([selected.stop_reason, selected.error_code].filter(Boolean))].join(' / ') }}</p>
       <RouterLink v-if="selected.progress.jobs_saved > 0" class="workflow-link" :to="{ name: 'jobs', query: { source: selected.provider } }">查看此来源的职位</RouterLink>
     </template>
