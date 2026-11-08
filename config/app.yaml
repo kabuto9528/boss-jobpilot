@@ -1,0 +1,16 @@
+search:
+  provider: fixture
+  keywords:
+    - 运维实习生
+    - Linux运维实习生
+  city: ""
+  max_pages: 1
+  max_jobs: 10
+
+browser:
+  timeout_ms: 15000
+  # Relative to the project root.
+  profile_dir: runtime/profiles
+
+tasks:
+  poll_interval_ms: 2000

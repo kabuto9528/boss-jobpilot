@@ -1,0 +1,19 @@
+# Local credentials. Keep the two project templates visible to Git.
+.env
+.env.*
+!/.env.example
+!/.env.test.example
+
+# Local Python environment and runtime data, including browser profiles.
+/.venv/
+/runtime/
+
+# Caches and generated output.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.egg-info/
+node_modules/
+.vite/
+dist/
+build/
