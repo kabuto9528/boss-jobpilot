@@ -25,6 +25,12 @@ py -3.12 -m venv .venv
 
 若 `py` 找不到解释器，可先运行 `python.exe --version`。输出为 Python 3.12.x 时，使用 `python.exe -m venv .venv`。自检脚本直接调用项目的虚拟环境，无需激活。若初始化在临时目录权限处失败，验收记录中有本机处理步骤。
 
+## 一键启动
+
+首次启动前，按阶段 2 配置 MySQL、初始化 boss_jobs 数据库并将 .env.example 复制为本地 .env。按环境基线创建 .venv 并安装 Python 依赖。运行 npm.cmd --prefix .\frontend ci 安装前端依赖。双击项目根目录的 start-local.cmd 后，脚本检查依赖、数据库和 Chromium，在本机启动 API 与前端并打开管理台。访问地址为 http://127.0.0.1:5173。
+
+双击 stop-local.cmd 停止此启动器创建的服务。API 与前端日志保存在 Git 忽略的 runtime/local-app/ 目录。已有服务占用端口时，启动器先检查服务健康，未确认通过时提示处理端口占用。
+
 ## 配置和目录
 
 - `.env.example` 是运行库模板，真实站点的 Review 和 Auto 开关默认关闭。`.env.test.example` 是隔离测试库模板。配置数据库时分别复制为 `.env` 和 `.env.test`，再填写各自的本机凭据。
