@@ -13,3 +13,11 @@ export function getHealth() {
 export function getReady() {
   return client.get('/ready')
 }
+
+export function getJobs(params, config) {
+  return client.get('/jobs', { ...config, params })
+}
+
+export function getJob(jobId, config) {
+  return client.get(`/jobs/${jobId}`, config)
+}

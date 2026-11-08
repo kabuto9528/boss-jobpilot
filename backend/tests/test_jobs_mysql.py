@@ -243,6 +243,17 @@ def test_stable_order_and_pagination_have_no_gaps_or_duplicates(mysql_jobs_app):
     ]
     assert sort_keys == sorted(sort_keys)
 
+    positions_by_title = {item["title"]: index for index, item in enumerate(records)}
+    jobs_by_title = {item["title"]: item for item in records}
+    low_score_internship = jobs_by_title["数字化运维实习生"]
+    high_score_social_job = jobs_by_title["高级平台工程师"]
+
+    assert low_score_internship["priority"] == 1
+    assert Decimal(str(low_score_internship["score"])) == Decimal("42.00")
+    assert high_score_social_job["priority"] == 4
+    assert Decimal(str(high_score_social_job["score"])) == Decimal("99.00")
+    assert positions_by_title["数字化运维实习生"] < positions_by_title["高级平台工程师"]
+
 
 def test_missing_job_returns_404_and_query_bounds_are_validated(mysql_jobs_app):
     client, _ = mysql_jobs_app
