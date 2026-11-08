@@ -2,6 +2,8 @@
 
 Windows 本地项目。阶段 1 建立工具基线、项目结构和配置约定。 [阶段 1 验收记录](docs/acceptance/stage-01.md)
 
+阶段 2 提供 MySQL 连接、`/api/health` 和 `/api/ready`。本机建库、配置、启动命令及实测结果见 [阶段 2 验收记录](docs/acceptance/stage-02.md)。
+
 ## Windows 环境基线
 
 | 工具 | 基线 | 本机验证版本 |
@@ -27,5 +29,5 @@ py -3.12 -m venv .venv
 
 - `.env.example` 是运行库模板，真实站点的 Review 和 Auto 开关默认关闭。`.env.test.example` 是隔离测试库模板。配置数据库时分别复制为 `.env` 和 `.env.test`，再填写各自的本机凭据。
 - `config/app.yaml` 保存本地样例搜索默认值、页数和职位数、超时、轮询间隔及浏览器 Profile 的相对路径。
-- `backend/` 是 Python 包，`backend/requirements.txt` 供后续阶段登记已验证的依赖。`scripts/` 保存本地自检脚本，`docs/acceptance/` 保存阶段验收。
+- `backend/` 是 Python 包，`backend/requirements.txt` 固定了已验证的依赖版本。`scripts/` 保存本地自检脚本，`docs/acceptance/` 保存阶段验收。
 - 浏览器专用 Profile 预留在 `runtime/profiles/`。Git 忽略整个 `runtime/`、实际环境配置、`.venv/` 及构建和缓存产物。
