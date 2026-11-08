@@ -1,0 +1,216 @@
+cases:
+  - id: ops_internship
+    input:
+      source_job_id: score-ops-intern
+      title: 运维实习生
+      experience_text: 实习
+      jd_text: 负责 Linux 服务器巡检，使用 Python 自动化脚本。
+      jd_complete: true
+    expected: {job_type: internship, priority: 1, score: 70, recommended: true, hard_exclusions: []}
+
+  - id: linux_ops_internship
+    input:
+      source_job_id: score-linux-intern
+      title: Linux运维实习生
+      experience_text: 实习
+      jd_text: 使用 Shell 脚本维护 Linux 服务器。
+      jd_complete: true
+    expected: {job_type: internship, priority: 1, score: 68, recommended: true, hard_exclusions: []}
+
+  - id: cloud_ops_internship
+    input:
+      source_job_id: score-cloud-intern
+      title: 云运维实习生
+      experience_text: 实习
+      jd_text: 参与云平台和云服务部署。
+      jd_complete: true
+    expected: {job_type: internship, priority: 1, score: 56, recommended: true, hard_exclusions: []}
+
+  - id: devops_internship
+    input:
+      source_job_id: score-devops-intern
+      title: DevOps实习生
+      experience_text: 实习
+      jd_text: 使用 Docker 和 Jenkins 构建交付流水线。
+      jd_complete: true
+    expected: {job_type: internship, priority: 1, score: 61, recommended: true, hard_exclusions: []}
+
+  - id: network_ops_internship
+    input:
+      source_job_id: score-network-intern
+      title: 网络运维实习生
+      experience_text: 实习
+      jd_text: 负责 TCP/IP 网络巡检和服务器监控。
+      jd_complete: true
+    expected: {job_type: internship, priority: 1, score: 56, recommended: true, hard_exclusions: []}
+
+  - id: technical_support_internship
+    input:
+      source_job_id: score-support-intern
+      title: 技术支持实习生
+      experience_text: 实习
+      jd_text: 排查 Linux 服务器故障并协助用户处理。
+      jd_complete: true
+    expected: {job_type: internship, priority: 1, score: 56, recommended: true, hard_exclusions: []}
+
+  - id: recommendation_threshold_55_is_inclusive
+    input:
+      source_job_id: score-threshold-55
+      title: 技术支持实习生
+      experience_text: 实习
+      jd_text: 熟悉 Linux 和 Prometheus。
+      jd_complete: true
+    expected: {job_type: internship, priority: 1, score: 55, recommended: true, hard_exclusions: []}
+
+  - id: recommendation_threshold_54_is_exclusive
+    input:
+      source_job_id: score-threshold-54
+      title: DevOps实习生
+      experience_text: 实习
+      jd_text: 负责例行记录和交接。
+      jd_complete: true
+    expected: {job_type: internship, priority: 1, score: 54, recommended: false, hard_exclusions: []}
+
+  - id: other_early_role
+    input:
+      source_job_id: score-early-other
+      title: 数据分析助理
+      experience_text: 2027届应届
+      jd_text: 使用 Python 处理样例数据。
+      jd_complete: true
+    expected: {job_type: campus, priority: 2, score: 52, recommended: false, hard_exclusions: []}
+
+  - id: 2027_internship_type_and_recruitment_cap
+    input:
+      source_job_id: score-2027-intern
+      title: 运维实习生
+      experience_text: 2027届实习
+      jd_text: 负责值班交接和日常记录。
+      jd_complete: true
+    expected: {job_type: internship, priority: 1, score: 64, recommended: true, hard_exclusions: []}
+
+  - id: 2027_internship_in_experience_field
+    input:
+      source_job_id: score-2027-intern-field
+      title: 运维工程师
+      experience_text: 2027届实习
+      jd_text: 岗位面向2027届实习生。
+      jd_complete: true
+    expected: {job_type: internship, priority: 1, score: 40, recommended: false, hard_exclusions: []}
+
+  - id: explicit_three_year_requirement
+    input:
+      source_job_id: score-three-years
+      title: Linux运维实习生
+      experience_text: 3年以上
+      jd_text: 负责 Linux 服务器维护。
+      jd_complete: true
+    expected: {job_type: internship, priority: 1, score: 39, recommended: false, hard_exclusions: [exclude.experience_3plus]}
+
+  - id: explicit_five_year_requirement
+    input:
+      source_job_id: score-five-years
+      title: 运维工程师
+      experience_text: 五年以上
+      jd_text: 负责服务器维护。
+      jd_complete: true
+    expected: {job_type: social, priority: 4, score: 0, recommended: false, hard_exclusions: [exclude.experience_3plus]}
+
+  - id: hard_three_year_requirement_from_jd
+    input:
+      source_job_id: score-three-years-jd
+      title: 运维工程师
+      experience_text: null
+      jd_text: 岗位要求：至少三年相关经验。
+      jd_complete: true
+    expected: {job_type: social, priority: 4, score: 0, recommended: false, hard_exclusions: [exclude.experience_3plus]}
+
+  - id: advanced_role_lower_score_clamp
+    input:
+      source_job_id: score-senior-clamp
+      title: 高级运维工程师
+      experience_text: 5年以上
+      jd_text: 任职要求：至少5年相关经验，熟悉 Linux 服务器。
+      jd_complete: true
+    expected: {job_type: social, priority: 4, score: 0, recommended: false, hard_exclusions: [exclude.experience_3plus, exclude.senior_role]}
+
+  - id: sales_title_hard_exclusion
+    input:
+      source_job_id: score-sales-role
+      title: 课程顾问
+      experience_text: 应届生
+      jd_text: 为求职者介绍课程并跟进咨询。
+      jd_complete: true
+    expected: {job_type: campus, priority: 2, score: 40, recommended: false, hard_exclusions: [exclude.sales_or_enrollment_role]}
+
+  - id: candidate_pays_for_training
+    input:
+      source_job_id: score-paid-training
+      title: 运维工程师
+      experience_text: 经验不限
+      jd_text: 岗位要求：求职者需支付培训费后方可入职。
+      jd_complete: true
+    expected: {job_type: junior, priority: 3, score: 38, recommended: false, hard_exclusions: [exclude.paid_training_for_candidate]}
+
+  - id: no_paid_training_is_not_exclusion
+    input:
+      source_job_id: score-no-training-fee
+      title: Linux运维实习生
+      experience_text: 实习
+      jd_text: 无需付费培训，公司提供导师指导。
+      jd_complete: true
+    expected: {job_type: internship, priority: 1, score: 60, recommended: true, hard_exclusions: []}
+
+  - id: sales_team_is_not_sales_role
+    input:
+      source_job_id: score-sales-team-context
+      title: 运维实习生
+      experience_text: 实习
+      jd_text: 为销售团队提供 Linux 服务器运维支持。
+      jd_complete: true
+    expected: {job_type: internship, priority: 1, score: 66, recommended: true, hard_exclusions: []}
+
+  - id: not_required_three_years_is_not_penalty
+    input:
+      source_job_id: score-negated-years
+      title: 运维工程师
+      experience_text: null
+      jd_text: 岗位要求：不要求三年以上经验，负责 Linux 服务器巡检。
+      jd_complete: true
+    expected: {job_type: social, priority: 4, score: 30, recommended: false, hard_exclusions: []}
+
+  - id: explicitly_unneeded_skill_gets_no_credit
+    input:
+      source_job_id: score-negated-linux
+      title: 系统管理员
+      experience_text: 经验不限
+      jd_text: 不要求熟悉 Linux。
+      jd_complete: true
+    expected: {job_type: junior, priority: 3, score: 38, recommended: false, hard_exclusions: []}
+
+  - id: missing_jd_blocks_recommendation
+    input:
+      source_job_id: score-missing-jd
+      title: 运维实习生
+      experience_text: 实习
+      jd_text: null
+      jd_complete: false
+    expected: {job_type: internship, priority: 1, score: 56, recommended: false, hard_exclusions: []}
+
+  - id: partial_jd_blocks_recommendation
+    input:
+      source_job_id: score-partial-jd
+      title: 运维实习生
+      experience_text: 实习
+      jd_text: 负责 Linux 服务器维护。
+      jd_complete: false
+    expected: {job_type: internship, priority: 1, score: 66, recommended: false, hard_exclusions: []}
+
+  - id: upper_group_caps_clamp_to_100
+    input:
+      source_job_id: score-upper-clamp
+      title: 运维实习生 校招 初级
+      experience_text: 实习 2027届 0-1年
+      jd_text: 熟悉 Linux、Shell、Python、Docker、Nginx、MySQL、网络、服务器、云计算、DevOps、Prometheus、Grafana、Jenkins、Kubernetes。
+      jd_complete: true
+    expected: {job_type: internship, priority: 1, score: 100, recommended: true, hard_exclusions: []}

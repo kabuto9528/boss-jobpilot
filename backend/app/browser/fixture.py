@@ -3,8 +3,9 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
+from time import sleep
 from typing import TypeVar
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from playwright.sync_api import BrowserContext, Locator, Route
 
@@ -33,6 +34,10 @@ T = TypeVar("T")
 
 class FixtureHandler(BaseHTTPRequestHandler):
     def do_GET(self):
+        address = urlsplit(self.path)
+        if address.path == "/search" and parse_qs(address.query).get("keyword") == ["慢读取"]:
+            # Deliberately slow local sample used to prove API submission is asynchronous.
+            sleep(2.0)
         case = self.path.removeprefix("/")
         if case in RISK_MESSAGES:
             template = (FIXTURES / "risk.html").read_text(encoding="utf-8")

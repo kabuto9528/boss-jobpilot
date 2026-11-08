@@ -1,0 +1,209 @@
+version: stage-09.1
+
+scoring:
+  base: 20
+  minimum: 0
+  maximum: 100
+  recommendation_threshold: 55
+
+type_order:
+  - internship
+  - campus
+  - junior
+  - social
+
+type_priority:
+  internship: 1
+  campus: 2
+  junior: 3
+  social: 4
+
+type_rules:
+  - id: type.internship
+    job_type: internship
+    signals:
+      title:
+        - '(?<!转正者)实习(?:生|岗位|职位|招聘)?'
+        - '\bintern(?:ship)?\b'
+      experience_text:
+        - '^(?:实习|实习生|实习岗位|实习职位)$'
+        - '20\d{2}\s*届.{0,6}实习|实习.{0,4}20\d{2}\s*届'
+        - '\bintern(?:ship)?\b'
+      jd_text:
+        - '(?:岗位性质|工作性质|用工类型|招聘类型)[:：\s]{0,8}(?:实习|实习生)'
+        - '招聘(?:实习(?:生|岗位|职位)?)|20\d{2}\s*届.{0,8}实习(?:生|岗位|职位)?'
+        - '本岗位为实习(?:岗|生)?'
+  - id: type.campus
+    job_type: campus
+    signals:
+      title:
+        - '校招|校园招聘|应届(?:生|毕业生)?|20\d{2}\s*届'
+      experience_text:
+        - '校招|校园招聘|应届(?:生|毕业生)?|20\d{2}\s*届'
+      jd_text:
+        - '(?:面向|招聘对象[:：]?\s*|应聘对象[:：]?\s*|仅限).{0,12}(?:应届(?:生|毕业生)?|20\d{2}\s*届)'
+        - '应届毕业生|校招岗位|校园招聘'
+  - id: type.junior
+    job_type: junior
+    signals:
+      title:
+        - '初级|初阶|助理(?:工程师|运维|技术)?'
+      experience_text:
+        - '初级|初阶|经验不限|不限经验|无经验|(?:^|\D)0\s*[-–~至到]\s*1\s*年|1\s*年以内|一年以内'
+      jd_text:
+        - '(?:经验要求|工作经验|任职资格|任职要求|岗位要求)[:：\s\S]{0,18}(?:经验不限|不限经验|无经验|(?:^|\D)0\s*[-–~至到]\s*1\s*年|1\s*年以内|一年以内|初级)'
+
+directions:
+  maximum_rules: 1
+  rules:
+    - id: direction.linux_ops_internship
+      label: Linux 运维实习
+      points: 22
+      title_patterns:
+        - '(?:Linux|麒麟|统信).{0,10}运维.{0,8}实习|运维.{0,8}(?:Linux|麒麟|统信).{0,8}实习'
+    - id: direction.cloud_ops_internship
+      label: 云运维或云计算实习
+      points: 20
+      title_patterns:
+        - '(?:云运维|云计算|云平台运维).{0,8}实习|实习.{0,8}(?:云运维|云计算|云平台运维)'
+    - id: direction.devops_internship
+      label: DevOps 实习
+      points: 18
+      title_patterns:
+        - '(?:DevOps|开发运维).{0,8}实习|实习.{0,8}(?:DevOps|开发运维)'
+    - id: direction.system_network_it_ops_internship
+      label: 系统、网络或 IT 运维实习
+      points: 16
+      title_patterns:
+        - '(?:系统|网络|IT).{0,8}(?:运维|工程师|支持)?.{0,8}实习|实习.{0,8}(?:系统|网络|IT).{0,8}(?:运维|工程师|支持)?'
+    - id: direction.technical_support_internship
+      label: 技术支持实习
+      points: 14
+      title_patterns:
+        - '(?:技术支持|IT支持|售后技术支持).{0,8}实习|实习.{0,8}(?:技术支持|IT支持|售后技术支持)'
+    - id: direction.ops_internship
+      label: 运维实习
+      points: 24
+      title_patterns:
+        - '运维.{0,8}实习|实习.{0,8}运维'
+      exclude_if_any:
+        - 'Linux|麒麟|统信|云运维|云计算|云平台运维|DevOps|开发运维|系统.{0,8}运维|网络.{0,8}运维|IT.{0,8}运维|技术支持|售后技术支持'
+    - id: direction.other_early_role
+      label: 其他校招、应届或初级岗位
+      points: 10
+      fallback: true
+      when_types:
+        - campus
+        - junior
+
+recruitment:
+  maximum_points: 20
+  rules:
+    - id: recruitment.internship
+      label: 实习招聘适配
+      job_type: internship
+      points: 12
+    - id: recruitment.campus
+      label: 校招或应届招聘适配
+      job_type: campus
+      points: 10
+    - id: recruitment.junior
+      label: 初级或低经验要求适配
+      job_type: junior
+      points: 8
+
+skills:
+  maximum_points: 36
+  rules:
+    - id: skill.linux
+      label: Linux
+      points: 6
+      patterns: ['Linux|Linux系统|Linux运维|Linux服务器']
+    - id: skill.shell
+      label: Shell
+      points: 4
+      patterns: ['Shell|Bash|命令行脚本']
+    - id: skill.python
+      label: Python
+      points: 4
+      patterns: ['Python']
+    - id: skill.docker
+      label: Docker
+      points: 4
+      patterns: ['Docker|容器化']
+    - id: skill.nginx
+      label: Nginx
+      points: 4
+      patterns: ['Nginx']
+    - id: skill.mysql
+      label: MySQL
+      points: 4
+      patterns: ['MySQL']
+    - id: skill.network
+      label: 网络
+      points: 4
+      patterns: ['网络|TCP\s*/\s*IP']
+    - id: skill.server
+      label: 服务器
+      points: 4
+      patterns: ['服务器|主机运维']
+    - id: skill.cloud
+      label: 云计算
+      points: 4
+      patterns: ['云计算|云平台|云服务']
+    - id: skill.devops
+      label: DevOps
+      points: 4
+      patterns: ['DevOps|开发运维']
+    - id: skill.prometheus
+      label: Prometheus
+      points: 3
+      patterns: ['Prometheus']
+    - id: skill.grafana
+      label: Grafana
+      points: 3
+      patterns: ['Grafana']
+    - id: skill.jenkins
+      label: Jenkins
+      points: 3
+      patterns: ['Jenkins']
+    - id: skill.kubernetes
+      label: Kubernetes
+      points: 3
+      patterns: ['Kubernetes|K8s']
+
+experience:
+  hard_exclude_min_years: 3
+  thresholds:
+    - years: 5
+      deduction: 40
+    - years: 3
+      deduction: 25
+  senior:
+    deduction: 30
+    title_patterns:
+      - '高级|资深|专家|架构师'
+    requirement_patterns:
+      - '(?:要求|需要|需具备|任职资格|岗位要求|职位要求).{0,16}(?:高级|资深|专家级|架构师)'
+
+hard_exclusions:
+  - id: exclude.sales_or_enrollment_role
+    label: 销售、招生或课程顾问岗位
+    title_patterns:
+      - '销售|招生|课程顾问'
+    jd_patterns:
+      - '(?:电话销售|课程销售|招生顾问|课程顾问|销售岗位|专职销售|从事销售工作|负责销售业务)'
+  - id: exclude.paid_training_for_candidate
+    label: 求职者需付费培训
+    jd_patterns:
+      - '(?:求职者|应聘者|候选人|报名者|学员).{0,12}(?<!无)(?:需要|需|必须|先).{0,12}(?:付费|缴纳|支付|交).{0,10}(?:培训|培训费|培训费用)'
+      - '(?<!无)(?:需|需要|必须|先).{0,8}(?:缴纳|支付|交).{0,8}培训费'
+
+negation:
+  before_patterns:
+    - '(?:无需|无须|不需|不需要|不要求|不必|不招|并非|不是|非|非必需|非必须)(?:掌握|具备|熟悉|使用|会用|了解|满足)?\s*$'
+  after_patterns:
+    - '^(?:无需|无须|不需|不需要|不要求|不必|非必需|非必须)'
+  whole_sentence_patterns:
+    - '(?:实习|实习生|校招|应届生?).{0,8}转正(?:者)?优先'
+    - '(?:无需|无须|不需|不需要|不必|免收|免费|公司承担|公司提供免费|不收取).{0,12}(?:付费培训|培训费|培训费用)'

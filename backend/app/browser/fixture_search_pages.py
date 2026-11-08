@@ -11,6 +11,7 @@ SEARCH_CASES = {
         (("logged-in", "fixture-job-001"), ("same-title", "fixture-job-002"), ("no-jd", "fixture-job-003")),
         (("logged-in", "fixture-job-001"), ("missing-identity", None), ("link-only", None)),
     ),
+    "慢读取": ((('logged-in', 'fixture-job-001'),),),
     "风险详情": ((("logged-in", "fixture-job-001"), ("risk", None), ("same-title", "fixture-job-002")),),
     "风险列表": ((("logged-in", "fixture-job-001"),), ()),
     "页面不前进": (

@@ -1,4 +1,5 @@
 from decimal import Decimal
+from math import ceil
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
@@ -220,18 +221,27 @@ def test_stable_order_and_pagination_have_no_gaps_or_duplicates(mysql_jobs_app):
     client, _ = mysql_jobs_app
     params = {"source": "fixture", "page_size": 2}
     first = client.get("/api/jobs", params={**params, "page": 1}).json()
-    second = client.get("/api/jobs", params={**params, "page": 2}).json()
-    third = client.get("/api/jobs", params={**params, "page": 3}).json()
-    again = client.get("/api/jobs", params={"source": "fixture", "page_size": 100}).json()
+    total = first["total"]
+    pages = [
+        client.get("/api/jobs", params={**params, "page": page_number}).json()
+        for page_number in range(1, ceil(total / params["page_size"]) + 1)
+    ]
+    all_pages = [
+        client.get("/api/jobs", params={"source": "fixture", "page": page_number, "page_size": 100}).json()
+        for page_number in range(1, ceil(total / 100) + 1)
+    ]
 
-    page_ids = [item["id"] for page in (first, second, third) for item in page["items"]]
-    ordered_ids = [item["id"] for item in again["items"]]
-    assert first["total"] == second["total"] == third["total"] == len(JOBS)
-    assert len(page_ids) == len(set(page_ids)) == len(JOBS)
+    page_ids = [item["id"] for page in pages for item in page["items"]]
+    ordered_ids = [item["id"] for page in all_pages for item in page["items"]]
+    seed_keys = {job["identity_key"] for job in JOBS}
+    assert all(page["total"] == total for page in pages)
+    assert total >= len(JOBS)
+    assert len(page_ids) == len(set(page_ids)) == total
     assert page_ids == ordered_ids
+    assert seed_keys <= {item["identity_key"] for page in all_pages for item in page["items"]}
     assert page_ids == [item["id"] for item in client.get("/api/jobs", params={"source": "fixture"}).json()["items"]]
 
-    records = again["items"]
+    records = [item for page in all_pages for item in page["items"]]
     sort_keys = [
         (
             item["priority"] if item["priority"] is not None else 65536,

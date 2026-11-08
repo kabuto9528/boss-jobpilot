@@ -70,6 +70,7 @@ function reasonsFor(job) {
     })
   }
   if (reasons && typeof reasons === 'object') {
+    if (Array.isArray(reasons.reasons)) return reasons.reasons.map(String)
     return Object.entries(reasons).map(([key, value]) => `${key}：${String(value)}`)
   }
   return []
@@ -263,7 +264,7 @@ onUnmounted(() => {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="job in jobs" :key="job.id">
+            <tr v-for="job in jobs" :key="job.id" :data-job-id="job.id">
               <td class="job-title-cell">
                 <button class="job-title-link" type="button" @click="openDetail(job)">{{ job.title }}</button>
                 <span class="job-company">{{ job.company }}</span>
