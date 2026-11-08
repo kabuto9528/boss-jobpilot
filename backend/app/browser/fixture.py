@@ -1,5 +1,6 @@
 from collections.abc import Callable
 from contextlib import contextmanager
+from dataclasses import dataclass
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from threading import Thread
 from typing import TypeVar
@@ -20,6 +21,12 @@ RISK_MESSAGES = {
     StopReason.LOGIN_REQUIRED: "会话已失效，请重新登录",
 }
 CASES = {"normal", "missing-value", "unknown", *RISK_MESSAGES}
+JOB_CASES = {
+    "logged-in": None,
+    "missing-jd": "jd_text",
+    "missing-identity": "source_job_id",
+}
+JOB_FIELDS = ("source_job_id", "title", "company", "city", "jd_text")
 T = TypeVar("T")
 
 
@@ -35,6 +42,12 @@ class FixtureHandler(BaseHTTPRequestHandler):
             html = template.replace("<!-- sample-value -->", sample)
         elif case == "unknown":
             html = "<!doctype html><title>Unknown fixture</title><p>Unknown fixture</p>"
+        elif case == "login-required":
+            html = (FIXTURES / "login.html").read_text(encoding="utf-8")
+        elif case in JOB_CASES:
+            html = (FIXTURES / "job.html").read_text(encoding="utf-8")
+            if field := JOB_CASES[case]:
+                html = html.replace(f'data-fixture-field="{field}"', "hidden")
         else:
             self.send_error(404)
             return
@@ -62,7 +75,7 @@ def fixture_site():
             thread.join()
 
 
-class FixturePage:
+class _GuardedFixturePage:
     def __init__(self, context: BrowserContext, origin: str):
         address = urlsplit(origin)
         if not address.port or origin != f"http://127.0.0.1:{address.port}":
@@ -78,9 +91,9 @@ class FixturePage:
     def actions(self) -> int:
         return self._actions
 
-    def navigate(self, case: str = "normal") -> None:
+    def navigate(self, case: str) -> None:
         self._check()
-        if case not in CASES:
+        if case not in self._cases:
             raise ValueError("Select a known local fixture case.")
         self._expected_url = f"{self._origin}/{case}"
         self._actions += 1
@@ -88,15 +101,6 @@ class FixturePage:
         if response is None or not response.ok:
             self._stop(StopReason.PAGE_UNRECOGNIZED)
         self._check()
-
-    def read_sample(self) -> str:
-        return self._act(lambda: self._page.locator("#fixture-value").inner_text())
-
-    def read_marker(self) -> str:
-        return self._act(lambda: self._page.locator("#fixture-marker").input_value())
-
-    def write_marker(self, marker: str) -> None:
-        self._act(lambda: self._page.locator("#fixture-marker").fill(marker))
 
     def _act(self, operation: Callable[[], T]) -> T:
         self._check()
@@ -113,7 +117,7 @@ class FixturePage:
         if self._page.url != self._expected_url:
             self._stop(StopReason.PAGE_UNRECOGNIZED)
         if self._expected_url != "about:blank":
-            reason = classify_fixture_page(self._page)
+            reason = classify_fixture_page(self._page, self._required_markers)
             if reason is not None:
                 self._stop(reason)
 
@@ -122,7 +126,57 @@ class FixturePage:
         raise SafeStop(reason)
 
     def _route(self, route: Route) -> None:
-        if route.request.url.startswith(self._origin + "/"):
+        if route.request.method == "GET" and route.request.url == self._expected_url:
             route.continue_()
         else:
             route.abort()
+
+
+class FixturePage(_GuardedFixturePage):
+    _cases = CASES
+    _required_markers = ('main[data-fixture-page="profile"]',)
+
+    def navigate(self, case: str = "normal") -> None:
+        super().navigate(case)
+
+    def read_sample(self) -> str:
+        return self._act(lambda: self._page.locator("#fixture-value").inner_text())
+
+    def read_marker(self) -> str:
+        return self._act(lambda: self._page.locator("#fixture-marker").input_value())
+
+    def write_marker(self, marker: str) -> None:
+        self._act(lambda: self._page.locator("#fixture-marker").fill(marker))
+
+
+@dataclass(frozen=True)
+class FixtureJob:
+    source_job_id: str
+    title: str
+    company: str
+    city: str
+    jd_text: str
+
+
+class FixtureJobPage(_GuardedFixturePage):
+    _cases = {*JOB_CASES, "login-required", "unknown", *RISK_MESSAGES}
+    _main = 'main[data-fixture-page="job"]'
+    _required_markers = (_main, f'{_main} > [data-fixture-session="logged-in"]')
+
+    def read_job(self) -> FixtureJob:
+        return self._act(self._read_detail)
+
+    def _read_detail(self) -> FixtureJob:
+        detail = self._page.locator(f"{self._main}:visible > [data-fixture-detail]:visible")
+        complete_jd = '[data-fixture-field="jd_text"][data-fixture-jd="complete"]:visible'
+        if detail.count() != 1 or detail.locator(complete_jd).count() != 1:
+            self._stop(StopReason.PAGE_UNRECOGNIZED)
+
+        fields = {}
+        for field in JOB_FIELDS:
+            values = detail.locator(f'[data-fixture-field="{field}"]:visible').all_inner_texts()
+            if len(values) != 1 or not values[0].strip():
+                self._stop(StopReason.PAGE_UNRECOGNIZED)
+            fields[field] = values[0].strip()
+
+        return FixtureJob(**fields)

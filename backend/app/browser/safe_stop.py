@@ -18,7 +18,9 @@ class SafeStop(RuntimeError):
         self.reason = reason
 
 
-def classify_fixture_page(page: Page) -> StopReason | None:
+def classify_fixture_page(
+    page: Page, required_markers: tuple[str, ...] = ('main[data-fixture-page="profile"]',)
+) -> StopReason | None:
     notices = page.locator("[data-fixture-risk]:visible").all()
     if notices:
         if len(notices) == 1:
@@ -27,6 +29,9 @@ def classify_fixture_page(page: Page) -> StopReason | None:
             except ValueError:
                 pass
         return StopReason.PAGE_UNRECOGNIZED
-    if page.locator('main[data-fixture-page="profile"]:visible').count() != 1:
+    login_pages = page.locator('main[data-fixture-page="login"]:visible').count()
+    if login_pages:
+        return StopReason.LOGIN_REQUIRED if login_pages == 1 else StopReason.PAGE_UNRECOGNIZED
+    if any(page.locator(f"{selector}:visible").count() != 1 for selector in required_markers):
         return StopReason.PAGE_UNRECOGNIZED
     return None
