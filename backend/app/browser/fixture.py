@@ -6,8 +6,9 @@ from threading import Thread
 from typing import TypeVar
 from urllib.parse import urlsplit
 
-from playwright.sync_api import BrowserContext, Route
+from playwright.sync_api import BrowserContext, Locator, Route
 
+from backend.app.browser.fixture_search_pages import render_search_fixture
 from backend.app.browser.safe_stop import SafeStop, StopReason, classify_fixture_page
 from backend.app.config import PROJECT_ROOT
 
@@ -26,7 +27,7 @@ JOB_CASES = {
     "missing-jd": "jd_text",
     "missing-identity": "source_job_id",
 }
-JOB_FIELDS = ("source_job_id", "title", "company", "city", "jd_text")
+JOB_FIELDS = ("source_job_id", "title", "company", "city")
 T = TypeVar("T")
 
 
@@ -49,8 +50,10 @@ class FixtureHandler(BaseHTTPRequestHandler):
             if field := JOB_CASES[case]:
                 html = html.replace(f'data-fixture-field="{field}"', "hidden")
         else:
-            self.send_error(404)
-            return
+            html = render_search_fixture(self.path, FIXTURES)
+            if html is None:
+                self.send_error(404)
+                return
 
         body = html.encode("utf-8")
         self.send_response(200)
@@ -83,6 +86,7 @@ class _GuardedFixturePage:
         self._origin = origin
         self._page = context.pages[0]
         self._expected_url = "about:blank"
+        self._current_markers = self._required_markers
         self._reason: StopReason | None = None
         self._actions = 0
         context.route("**/*", self._route)
@@ -95,7 +99,11 @@ class _GuardedFixturePage:
         self._check()
         if case not in self._cases:
             raise ValueError("Select a known local fixture case.")
-        self._expected_url = f"{self._origin}/{case}"
+        self._open(f"/{case}", self._required_markers)
+
+    def _open(self, target: str, markers: tuple[str, ...]) -> None:
+        self._expected_url = f"{self._origin}{target}"
+        self._current_markers = markers
         self._actions += 1
         response = self._page.goto(self._expected_url, wait_until="domcontentloaded")
         if response is None or not response.ok:
@@ -117,7 +125,7 @@ class _GuardedFixturePage:
         if self._page.url != self._expected_url:
             self._stop(StopReason.PAGE_UNRECOGNIZED)
         if self._expected_url != "about:blank":
-            reason = classify_fixture_page(self._page, self._required_markers)
+            reason = classify_fixture_page(self._page, self._current_markers)
             if reason is not None:
                 self._stop(reason)
 
@@ -167,16 +175,29 @@ class FixtureJobPage(_GuardedFixturePage):
         return self._act(self._read_detail)
 
     def _read_detail(self) -> FixtureJob:
-        detail = self._page.locator(f"{self._main}:visible > [data-fixture-detail]:visible")
-        complete_jd = '[data-fixture-field="jd_text"][data-fixture-jd="complete"]:visible'
-        if detail.count() != 1 or detail.locator(complete_jd).count() != 1:
+        detail = self._detail_container()
+        jd_text, jd_complete = self._read_jd(detail)
+        if not jd_complete or not jd_text:
             self._stop(StopReason.PAGE_UNRECOGNIZED)
 
-        fields = {}
-        for field in JOB_FIELDS:
-            values = detail.locator(f'[data-fixture-field="{field}"]:visible').all_inner_texts()
-            if len(values) != 1 or not values[0].strip():
-                self._stop(StopReason.PAGE_UNRECOGNIZED)
-            fields[field] = values[0].strip()
+        fields = {field: self._field(detail, field) for field in JOB_FIELDS}
+        if any(value is None for value in fields.values()):
+            self._stop(StopReason.PAGE_UNRECOGNIZED)
+        return FixtureJob(**fields, jd_text=jd_text)
 
-        return FixtureJob(**fields)
+    def _detail_container(self) -> Locator:
+        detail = self._page.locator(f"{self._main}:visible > [data-fixture-detail]:visible")
+        if detail.count() != 1:
+            self._stop(StopReason.PAGE_UNRECOGNIZED)
+        return detail
+
+    def _field(self, container: Locator, name: str) -> str | None:
+        values = container.locator(f'[data-fixture-field="{name}"]:visible').all_inner_texts()
+        if len(values) > 1:
+            self._stop(StopReason.PAGE_UNRECOGNIZED)
+        return (values[0].strip() or None) if values else None
+
+    def _read_jd(self, detail: Locator) -> tuple[str | None, bool]:
+        text = self._field(detail, "jd_text")
+        complete = detail.locator('[data-fixture-field="jd_text"][data-fixture-jd="complete"]:visible')
+        return text, complete.count() == 1
