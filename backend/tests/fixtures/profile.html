@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<title>阶段 6 · 本地 Profile 样例</title>
+<main data-fixture-page="profile">
+  <h1>本地 Profile 样例</h1>
+  <!-- sample-value -->
+  <p>样例职位描述：维护验证码服务。</p>
+  <p data-fixture-risk="CAPTCHA_REQUIRED" hidden>隐藏的验证码提示</p>
+  <label>本地持久标记 <input id="fixture-marker"></label>
+</main>
+<script>
+  const marker = document.querySelector('#fixture-marker');
+  marker.value = localStorage.getItem('stage-06-marker') ?? '';
+  marker.addEventListener('input', () => localStorage.setItem('stage-06-marker', marker.value));
+</script>
+</html>
