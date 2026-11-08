@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .api.health import router
+from .api.jobs import router as jobs_router
 from .config import DatabaseConfigError, DatabaseSettings, load_database_settings
 from .db import create_database_engine
 
@@ -32,6 +33,7 @@ def create_app(database_settings: DatabaseSettings | None = None) -> FastAPI:
     app = FastAPI(lifespan=lifespan)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["127.0.0.1", "localhost"])
     app.include_router(router)
+    app.include_router(jobs_router)
     return app
 
 
