@@ -35,5 +35,14 @@ export function getTask(taskId, config) {
 }
 
 export function stopTask(taskId, config) {
-  return client.post(`/tasks/${taskId}/stop`, null, config)
+  return client.post(`/tasks/${taskId}/stop`, {}, config)
 }
+
+export const getDashboard = (source, config) => client.get('/dashboard', { ...config, params: { source } })
+export const getApplications = (params, config) => client.get('/applications', { ...config, params })
+export const addApplication = (jobId) => client.post('/applications', { job_id: jobId })
+export const resolveApplication = (id, payload) => client.post(`/applications/${id}/resolve`, payload)
+export const getSettings = (config) => client.get('/settings', config)
+export const acknowledgeGuard = (guard) => client.post(`/automation-guard/${guard.provider}/acknowledge`, {
+  confirmed: true, blocked_at: guard.blocked_at,
+})

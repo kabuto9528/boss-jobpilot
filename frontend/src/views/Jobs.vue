@@ -1,14 +1,17 @@
 <script setup>
 import { computed, onUnmounted, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { getJob, getJobs } from '../api/client'
+import { sourceFrom } from '../workflow'
 
 const PAGE_SIZE_OPTIONS = [5, 10, 20]
+const route = useRoute()
 
 const filters = reactive({
-  source: 'fixture',
+  source: sourceFrom(route.query.source),
   q: '',
   job_type: '',
-  recommended: '',
+  recommended: route.query.recommended === 'true' ? 'true' : '',
   min_score: '',
 })
 
@@ -328,6 +331,7 @@ onUnmounted(() => {
       </div>
       <h2>{{ detail.title }}</h2>
       <p class="detail-company">{{ detail.company }}</p>
+      <RouterLink class="workflow-link" :to="{ name: 'applications', query: { source: detail.source, job: detail.id } }">建立待投递记录</RouterLink>
       <dl class="detail-facts">
         <div><dt>地点</dt><dd>{{ detail.city || '未填写' }}</dd></div>
         <div><dt>薪资</dt><dd>{{ detail.salary_text || '未填写' }}</dd></div>

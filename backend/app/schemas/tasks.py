@@ -4,13 +4,18 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
+MAX_KEYWORDS = 5
+MAX_PAGES = 5
+MAX_JOBS = 20
+
+
 class ReviewTaskParams(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    keywords: list[str] = Field(min_length=1, max_length=5)
+    keywords: list[str] = Field(min_length=1, max_length=MAX_KEYWORDS)
     city: str | None = Field(default=None, max_length=64)
-    max_pages: int = Field(default=2, ge=1, le=5)
-    max_jobs: int = Field(default=5, ge=1, le=20)
+    max_pages: int = Field(default=2, ge=1, le=MAX_PAGES)
+    max_jobs: int = Field(default=5, ge=1, le=MAX_JOBS)
 
     @field_validator("keywords")
     @classmethod
@@ -65,11 +70,13 @@ class TaskStatus(BaseModel):
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
+    updated_at: datetime
 
 
 class TaskList(BaseModel):
     items: list[TaskStatus]
     total: int = Field(ge=0)
+    active_task: TaskStatus | None
 
 
 class StopResult(BaseModel):

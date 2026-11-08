@@ -4,9 +4,11 @@ from datetime import UTC, datetime
 from sqlalchemy import func, select
 from sqlalchemy.dialects.mysql import insert
 from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session
 
 from backend.app.config import load_database_settings
 from backend.app.db import create_database_engine
+from backend.app.models.application import Application
 from backend.app.models.job import Job
 
 
@@ -122,7 +124,7 @@ JOBS = (
 )
 
 
-def seed_jobs(engine: Engine) -> int:
+def seed_jobs(engine: Engine, jobs=JOBS) -> int:
     now = datetime.now(UTC).replace(tzinfo=None)
     rows = [
         {
@@ -132,7 +134,7 @@ def seed_jobs(engine: Engine) -> int:
             "first_seen_at": now,
             "last_seen_at": now,
         }
-        for job in JOBS
+        for job in jobs
     ]
     statement = insert(Job).values(rows)
     statement = statement.on_duplicate_key_update(
@@ -159,14 +161,60 @@ def seed_jobs(engine: Engine) -> int:
     return len(rows)
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Seed fixture-only Jobs demo records.")
-    parser.add_argument("--dataset", choices=("jobs",), required=True)
-    parser.parse_args()
+WORKFLOW_TITLES = ("运维支持", "数据维护", "云资源巡检", "平台保障", "可观测性支持", "自动化工单")
+WORKFLOW_JOBS = tuple(
+    {
+        **job,
+        "source_job_id": f"fixture-workflow-{index}",
+        "identity_key": f"fixture:workflow-{index}",
+        "title": f"流程样例 · {title}",
+    }
+    for index, (job, title) in enumerate(zip(JOBS, WORKFLOW_TITLES, strict=True), 1)
+)
+WORKFLOW_STATES = (
+    ("pending", None),
+    ("succeeded", "样例证据：详情显示已投递"),
+    ("failed", "样例证据：操作未完成"),
+    ("uncertain", "样例证据：缺少确认结果，需要人工核对"),
+    ("sending", "样例记录：模拟投递中"),
+)
 
-    engine = create_database_engine(load_database_settings())
+
+def seed_workflow(engine: Engine) -> tuple[int, int]:
+    job_count = seed_jobs(engine, WORKFLOW_JOBS)
+    now = datetime.now(UTC).replace(tzinfo=None)
+    application_count = 0
+    with Session(engine) as session, session.begin():
+        for job, (status, evidence) in zip(WORKFLOW_JOBS, WORKFLOW_STATES):
+            job_id = session.scalar(select(Job.id).where(
+                Job.source == "fixture", Job.identity_key == job["identity_key"],
+            ).with_for_update())
+            # Re-seeding must not reset records after a user has confirmed them.
+            if session.scalar(select(Application.id).where(Application.job_id == job_id).limit(1)) is not None:
+                continue
+            session.add(Application(
+                job_id=job_id, origin="fixture", status=status, evidence_summary=evidence,
+                result_code="DEMO_SAMPLE" if evidence else None,
+                started_at=None if status == "pending" else now,
+                resolved_at=now if status in ("succeeded", "failed") else None,
+            ))
+            application_count += 1
+    return job_count, application_count
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Seed fixture-only demo records.")
+    parser.add_argument("--dataset", choices=("jobs", "workflow"), required=True)
+    parser.add_argument("--test-db", action="store_true", help="Use the isolated .env.test database.")
+    args = parser.parse_args()
+
+    engine = create_database_engine(load_database_settings(testing=args.test_db))
     try:
-        count = seed_jobs(engine)
+        if args.dataset == "workflow":
+            count, applications = seed_workflow(engine)
+            print(f"Added {applications} workflow sample applications; existing records were preserved.")
+        else:
+            count = seed_jobs(engine)
         with engine.connect() as connection:
             total = connection.execute(select(func.count()).select_from(Job).where(Job.source == "fixture")).scalar_one()
         print(f"Upserted {count} fixture jobs; fixture total is {total}.")

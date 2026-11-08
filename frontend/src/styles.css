@@ -53,7 +53,7 @@ button, input { font: inherit; }
 }
 .side-menu .el-menu-item:hover { background: #f5f7ff; color: #315efb; }
 .side-menu .el-menu-item.is-active { background: #edf1ff; color: #315efb; font-weight: 600; }
-.nav-mark { display: inline-grid; width: 22px; height: 22px; place-items: center; border: 1px solid currentColor; border-radius: 7px; font-size: 11px; }
+.nav-mark { display: inline-grid; width: 22px; height: 22px; flex: 0 0 22px; place-items: center; border: 1px solid currentColor; border-radius: 7px; font-size: 11px; line-height: 1; }
 .sidebar-footnote { display: flex; align-items: center; gap: 9px; margin: auto 10px 0; padding-top: 18px; border-top: 1px solid #edf0f5; color: #8995a5; font-size: 12px; }
 .footnote-dot { width: 7px; height: 7px; border-radius: 50%; background: #22b67a; box-shadow: 0 0 0 4px #22b67a1a; }
 
@@ -208,6 +208,86 @@ button, input { font: inherit; }
 .job-description { padding: 16px; border: 1px solid #edf0f5; border-radius: 11px; background: #fafbfd; color: #59677d; font-size: 12px; line-height: 1.85; overflow-wrap: anywhere; white-space: pre-wrap; }
 .jd-empty { margin: 0; color: #a0a9b7; font-size: 11px; line-height: 1.7; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
+.workflow-panel {
+  margin-bottom: 18px;
+  padding: 20px 22px;
+  border: 1px solid #e9edf4;
+  border-radius: 16px;
+  background: white;
+  box-shadow: 0 8px 24px #243a670b;
+}
+.workflow-title, .workflow-actions, .workflow-toolbar, .workflow-line { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.workflow-title { justify-content: space-between; margin-bottom: 14px; }
+.workflow-title h2 { margin: 0; color: #23334e; font-size: 16px; font-weight: 650; }
+.workflow-subtitle { margin: 19px 0 7px; font-size: 13px; }
+.workflow-actions, .workflow-toolbar { align-items: end; }
+.workflow-actions .job-filter, .workflow-toolbar .job-filter { min-width: 112px; }
+.workflow-toolbar { margin-bottom: 12px; }
+.workflow-fields { display: grid; gap: 14px; }
+.workflow-fields .workflow-toolbar { margin-bottom: 0; }
+.workflow-fields .workflow-note { margin: 0; }
+.job-filter textarea {
+  width: 100%;
+  padding: 9px 11px;
+  border: 1px solid #e3e8f0;
+  border-radius: 9px;
+  outline: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.6;
+  color: #344157;
+  resize: vertical;
+}
+.job-filter textarea:focus { border-color: #7f9cff; box-shadow: 0 0 0 3px #315efb14; }
+.workflow-note { color: #68788e; font-size: 12px; line-height: 1.65; }
+.workflow-link { color: #315bd5; font-size: 13px; text-decoration: none; font-weight: 600; }
+.workflow-link:hover { text-decoration: underline; }
+.link-button { border: 0; background: none; cursor: pointer; padding: 0; }
+.workflow-message { margin-top: 12px; }
+.workflow-success { color: #26744a; font-size: 13px; line-height: 1.6; }
+.workflow-empty { padding-block: 26px; color: #68788e; text-align: center; font-size: 13px; }
+.workflow-line { font-size: 13px; }
+.workflow-line .el-button { margin: 0; }
+.workflow-table-wrap { overflow-x: auto; }
+.workflow-table { width: 100%; min-width: 545px; border-collapse: collapse; font-size: 13px; text-align: left; }
+.workflow-table th { background: #f7f9fc; color: #60728a; font-size: 12px; white-space: nowrap; }
+.workflow-table td, .workflow-table th { padding: 11px 10px; border-bottom: 1px solid #edf0f5; }
+.workflow-table td { color: #46546a; }
+.workflow-table td:last-child { white-space: nowrap; }
+.workflow-table td small { display: block; margin-top: 4px; color: #63738a; font-size: 11px; line-height: 1.6; }
+.workflow-table .evidence-cell { min-width: 110px; max-width: 320px; overflow-wrap: anywhere; white-space: pre-wrap; }
+.application-table { min-width: 715px; }
+.workflow-pager { justify-content: end; margin-top: 14px; color: #64758d; }
+.nowrap { white-space: nowrap; }
+.metric-grid, .workflow-counters, .workflow-facts { display: grid; gap: 10px; }
+.metric-grid { grid-template-columns: repeat(auto-fit, minmax(108px, 1fr)); }
+.metric-card {
+  display: grid;
+  gap: 8px;
+  padding: 13px 15px;
+  border: 1px solid #e9edf4;
+  border-radius: 11px;
+  background: #fafbfe;
+  color: #5d6f85;
+  font-size: 12px;
+  text-decoration: none;
+}
+.metric-card:hover { border-color: #aabaf8; background: #f4f7ff; }
+.metric-card strong { color: #253952; font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.metric-card .metric-warning { color: #a45d12; }
+.metric-card .metric-danger { color: #b64045; }
+.metric-card .metric-success { color: #22774e; }
+.workflow-list { margin: 0; padding: 0; list-style: none; }
+.workflow-list li { display: flex; gap: 11px; align-items: center; flex-wrap: wrap; padding: 9px 0; border-top: 1px solid #edf0f5; font-size: 12px; color: #697a91; }
+.workflow-counters { grid-template-columns: repeat(auto-fit, minmax(103px, 1fr)); margin-block: 15px; }
+.workflow-counters div, .workflow-facts div { min-width: 0; padding: 10px 12px; border-radius: 9px; background: #f7f9fc; }
+.workflow-counters dt, .workflow-facts dt { color: #667991; font-size: 12px; }
+.workflow-counters dd, .workflow-facts dd { margin: 5px 0 0; color: #344762; font-size: 14px; overflow-wrap: anywhere; }
+.workflow-counters dd { font-weight: 650; }
+.workflow-facts { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.workflow-details summary { padding-block: 8px; color: #315bd5; cursor: pointer; font-size: 13px; }
+.workflow-details .workflow-facts { grid-template-columns: 1fr; }
 @keyframes jobs-bounce { 0%, 80%, 100% { opacity: .4; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-4px); } }
 
 @media (max-width: 1150px) {
@@ -230,6 +310,8 @@ button, input { font: inherit; }
   .page-area { padding: 26px 18px; }
   .page-heading { margin-bottom: 22px; }
   .page-heading h1 { font-size: 22px; }
+  .page-heading { flex-wrap: wrap; }
+  .workflow-panel { padding: 16px; }
   .placeholder-card { align-items: flex-start; flex-wrap: wrap; padding: 22px; }
   .placeholder-copy { min-width: calc(100% - 74px); }
   .placeholder-card .el-tag { margin-left: 72px; }

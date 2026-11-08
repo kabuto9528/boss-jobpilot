@@ -1,8 +1,8 @@
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, Computed, Index, String, UniqueConstraint, text
+from sqlalchemy import CheckConstraint, Computed, Index, String, UniqueConstraint, func, text
 from sqlalchemy.dialects import mysql
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, column_property, mapped_column
 
 from .base import Base
 
@@ -46,3 +46,5 @@ class Task(Base):
         mysql.DATETIME(fsp=6), nullable=False,
         server_default=text("CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6)"),
     )
+    created_epoch = column_property(func.unix_timestamp(created_at))
+    updated_epoch = column_property(func.unix_timestamp(updated_at))

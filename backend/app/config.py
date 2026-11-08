@@ -208,9 +208,19 @@ def load_scoring_settings(path: Path | None = None) -> ScoringSettings:
     return ScoringSettings(version=validated["version"], document=validated)
 
 
-def load_browser_settings() -> BrowserSettings:
+def load_app_document() -> dict[str, Any]:
     try:
         document = yaml.safe_load((PROJECT_ROOT / "config" / "app.yaml").read_text(encoding="utf-8-sig"))
+    except (OSError, yaml.YAMLError):
+        raise ValueError("Check the configuration in config/app.yaml.") from None
+    if not isinstance(document, dict):
+        raise ValueError("Check the configuration in config/app.yaml.")
+    return document
+
+
+def load_browser_settings() -> BrowserSettings:
+    try:
+        document = load_app_document()
         browser = document["browser"]
         relative_profile_root = Path(browser["profile_dir"])
         timeout_ms = browser["timeout_ms"]
