@@ -128,3 +128,11 @@ if ($detail.status -ne 'succeeded' -or $detail.progress.browser_submit_calls -ne
 | 真实 BOSS Auto | 未获得可核验的投递许可材料。真实 Review、现场核验的提交动作和成功凭据、用户对本次单个职位的明确确认均未满足。 | 未验收、未启用。没有装配真实提交适配器，API 返回 `403 AUTO_DISABLED`，界面仅提供样例预演。 |
 
 任务页截图中的 BOSS 来源中断任务 `#174` 来自前置阶段在隔离库写入的合成重启用例。
+
+## 一键启动复验
+
+2026-11-09（北京时间）。使用原启动器复现页面可打开、总览接口返回 HTTP 404。本机 Vite 的旧配置把 `/api` 转发至 `127.0.0.1:8001`，而启动器启动的 API 监听 `127.0.0.1:8000`。启动器现在为其 Vite 进程设置正确的代理目标，并通过前端端口成功读取总览后才打开浏览器。端口冲突或启动失败时，仅清理本次启动创建的进程记录。
+
+- 保留旧的前端配置并继承指向 `8001` 的环境变量，执行 `start-local.cmd`。代理后的健康、就绪和五页接口均可用，前端总览与直接访问 `8000` 的响应一致。重复启动复用两个进程，`stop-local.cmd` 释放 `8000`、`5173` 并清理 PID 记录。再次启动后用 Chromium 逐页验证，运行库总览显示 6 条本地样例职位和 3 条推荐。 [启动验收截图](../../runtime/acceptance-recheck/launcher-dashboard.png)
+- 后端全量复验 **120 passed in 171.50s**，前端 `npm.cmd --prefix .\frontend run build` 通过。隔离库重跑 `scripts.smoke_management_ui` 和 `scripts.smoke_auto_preview_ui`，通过五页交叉核对、人工确认、Review 正常与停止、安全闸及 Auto 预演。Review 未新增投递记录，Auto 预演提交次数为 0，隔离库 9 条投递记录逐列一致。
+- 验收后关闭隔离 API 和 Vite，保留正式本机管理台供复查。真实 BOSS Review 和 Auto 的验收状态见上节。

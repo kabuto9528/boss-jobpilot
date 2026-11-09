@@ -11,6 +11,8 @@ $playwrightCache = $null
 $previousPlaywrightCache = [Environment]::GetEnvironmentVariable('PLAYWRIGHT_BROWSERS_PATH', 'Process')
 $apiPort = 8000
 $frontendPort = 5173
+$apiBase = "http://127.0.0.1:$apiPort"
+$frontendBase = "http://127.0.0.1:$frontendPort"
 $apiArguments = @('-m', 'uvicorn', 'backend.app.main:app', '--host', '127.0.0.1', '--port', "$apiPort", '--workers', '1')
 $frontendArguments = @($vite, '--host', '127.0.0.1', '--port', "$frontendPort", '--strictPort')
 $apiProcess = $null
@@ -25,8 +27,8 @@ function Test-Listener($Port) {
 
 function Test-ApiReady {
     try {
-        $ready = Invoke-RestMethod -Uri "http://127.0.0.1:$apiPort/api/ready" -TimeoutSec 2
-        $settings = Invoke-RestMethod -Uri "http://127.0.0.1:$apiPort/api/settings" -TimeoutSec 3
+        $ready = Invoke-RestMethod -Uri "$apiBase/api/ready" -TimeoutSec 2
+        $settings = Invoke-RestMethod -Uri "$apiBase/api/settings" -TimeoutSec 3
         return $ready.status -eq 'ready' -and $settings.capabilities.fixture.auto_preview_enabled -eq $true
     } catch {
         return $false
@@ -35,8 +37,10 @@ function Test-ApiReady {
 
 function Test-FrontendReady {
     try {
-        $page = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:$frontendPort/" -TimeoutSec 3
-        return $page.StatusCode -eq 200 -and $page.Content.Contains('BOSS 职位管理台')
+        $page = Invoke-WebRequest -UseBasicParsing -Uri "$frontendBase/" -TimeoutSec 3
+        if ($page.StatusCode -ne 200 -or -not $page.Content.Contains('BOSS 职位管理台')) { return $false }
+        $dashboard = Invoke-RestMethod -Uri "$frontendBase/api/dashboard?source=fixture" -TimeoutSec 3
+        return $dashboard.source -eq 'fixture' -and $null -ne $dashboard.jobs_total -and $null -ne $dashboard.applications
     } catch {
         return $false
     }
@@ -100,11 +104,11 @@ with sync_playwright() as playwright:
 
     if ((Test-Listener $apiPort) -or (Test-Listener $frontendPort)) {
         if ((Test-ApiReady) -and (Test-FrontendReady)) {
-            Write-Host "The local app is already available at http://127.0.0.1:$frontendPort"
-            if (-not $SkipBrowser) { Start-Process "http://127.0.0.1:$frontendPort" }
+            Write-Host "The local app is already available at $frontendBase"
+            if (-not $SkipBrowser) { Start-Process $frontendBase }
             exit 0
         }
-        throw 'Port 8000 or 5173 is already in use. Close the existing service and retry.'
+        throw 'Port 8000 or 5173 is already in use and the app did not pass its end-to-end check. Close the existing service and retry.'
     }
 
     & $python -c "from sqlalchemy import text; from backend.app.config import load_database_settings; from backend.app.db import create_database_engine; engine=create_database_engine(load_database_settings()); connection=engine.connect(); connection.execute(text('SELECT 1')); connection.close(); engine.dispose()"
@@ -137,8 +141,14 @@ with sync_playwright() as playwright:
     if (-not (Test-ApiReady)) { throw 'The API did not become ready in 30 seconds. See runtime\local-app\api.err.log.' }
 
     $frontendRoot = Join-Path $projectRoot 'frontend'
-    $frontendProcess = Start-Process -FilePath $node.Source -ArgumentList $frontendArguments -WorkingDirectory $frontendRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput $frontendOutput -RedirectStandardError $frontendErrors
-    $frontendCreated = $true
+    $previousProxyTarget = [Environment]::GetEnvironmentVariable('VITE_API_PROXY_TARGET', 'Process')
+    try {
+        [Environment]::SetEnvironmentVariable('VITE_API_PROXY_TARGET', $apiBase, 'Process')
+        $frontendProcess = Start-Process -FilePath $node.Source -ArgumentList $frontendArguments -WorkingDirectory $frontendRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput $frontendOutput -RedirectStandardError $frontendErrors
+        $frontendCreated = $true
+    } finally {
+        [Environment]::SetEnvironmentVariable('VITE_API_PROXY_TARGET', $previousProxyTarget, 'Process')
+    }
     Set-Content -LiteralPath $frontendPidFile -Value $frontendProcess.Id -Encoding ASCII
 
     $deadline = (Get-Date).AddSeconds(20)
@@ -147,16 +157,19 @@ with sync_playwright() as playwright:
         if (Test-FrontendReady) { break }
         Start-Sleep -Milliseconds 500
     }
-    if (-not (Test-FrontendReady)) { throw 'The frontend did not become ready in 20 seconds. See runtime\local-app\frontend.err.log.' }
+    if (-not (Test-FrontendReady)) { throw 'The frontend or its API proxy did not become ready in 20 seconds. See runtime\local-app\frontend.err.log and api.err.log.' }
 
-    if (-not $SkipBrowser) { Start-Process "http://127.0.0.1:$frontendPort" }
-    Write-Host "Local app is ready at http://127.0.0.1:$frontendPort"
+    if (-not $SkipBrowser) { Start-Process $frontendBase }
+    Write-Host "Local app is ready at $frontendBase"
     Write-Host 'Use stop-local.cmd to stop the services started by this launcher.'
 } catch {
-    if ($frontendCreated) { Stop-StartedProcess $frontendProcess $node.Source }
-    if ($apiCreated) { Stop-StartedProcess $apiProcess $python }
-    foreach ($pidFile in @($apiPidFile, $frontendPidFile)) {
-        if (Test-Path -LiteralPath $pidFile) { Remove-Item -LiteralPath $pidFile -Force }
+    if ($frontendCreated) {
+        Stop-StartedProcess $frontendProcess $node.Source
+        if (Test-Path -LiteralPath $frontendPidFile) { Remove-Item -LiteralPath $frontendPidFile -Force }
+    }
+    if ($apiCreated) {
+        Stop-StartedProcess $apiProcess $python
+        if (Test-Path -LiteralPath $apiPidFile) { Remove-Item -LiteralPath $apiPidFile -Force }
     }
     [Console]::Error.WriteLine("Local app startup failed: $($_.Exception.Message)")
     exit 1
